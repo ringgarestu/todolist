@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:todolist/presentation/pages/home.dart';
 import 'package:todolist/presentation/pages/personaltask.dart';
 import 'package:todolist/presentation/pages/worktask.dart';
 import 'presentation/pages/splashscreen.dart';
 
-void main() => runApp(const MyApp());
-
+void main() {
+  runApp(const MyApp());
+}
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 

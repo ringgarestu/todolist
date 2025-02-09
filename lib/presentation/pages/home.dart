@@ -25,10 +25,13 @@ class _HomePageState extends State<HomePage> {
                 fit: BoxFit.contain,
                 height: 50,
               ),
-              const Text(
+              const SizedBox(width: 10),
+              const  Expanded(
+              child:Text(
                 'Choose Your Task Category',
                 style:
                     TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+              ),
               ),
             ],
           )),
