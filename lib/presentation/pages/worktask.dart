@@ -1,6 +1,8 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WorkTask extends StatefulWidget {
   const WorkTask({Key? key}) : super(key: key);
@@ -19,6 +21,47 @@ class _WorkTaskState extends State<WorkTask> {
   // list for save task
   List<Map<String, dynamic>> _tasks = [];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  Future<void> _loadTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? taskString = prefs.getString('work_tasks');
+
+    if (taskString != null) {
+      print('Loaded tasks: $taskString}');
+      setState(() {
+        _tasks = List<Map<String, dynamic>>.from(jsonDecode(taskString));
+      });
+    }
+  }
+
+  Future<void> _saveTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('work_tasks', jsonEncode(_tasks));
+  }
+
+  void _addTask(String title, String description, DateTime? date) {
+    setState(() {
+      _tasks.add({
+        'title': title,
+        'description': description,
+        'date': date?.toIso8601String(),
+      });
+    });
+    _saveTasks();
+  }
+
+  void _deleteTask(int index) {
+    setState(() {
+      _tasks.removeAt(index);
+    });
+    _saveTasks();
+  }
+
   void _pickDate() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -26,7 +69,7 @@ class _WorkTaskState extends State<WorkTask> {
       firstDate: DateTime.now(),
       lastDate: DateTime(2100),
     );
-print("Picked Date: $pickedDate");
+    print("Picked Date: $pickedDate");
     if (pickedDate != null) {
       setState(() {
         _selectedDate = pickedDate;
@@ -48,12 +91,13 @@ print("Picked Date: $pickedDate");
           right: 16,
           bottom: MediaQuery.of(context).viewInsets.bottom + 16,
         ),
-        child:  Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Add Work Task', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              'Add Work Task',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -62,55 +106,60 @@ print("Picked Date: $pickedDate");
                 labelText: 'Task Title',
                 border: OutlineInputBorder(),
               ),
-              ),
-        const SizedBox(height: 16,
+            ),
+            const SizedBox(
+              height: 16,
             ),
             TextField(
               controller: _descriptionController,
               decoration: const InputDecoration(
                 labelText: 'Description (Optional)',
-                    border: OutlineInputBorder(),
+                border: OutlineInputBorder(),
               ),
-                maxLines: 3,
+              maxLines: 3,
             ),
             const SizedBox(height: 16),
             Row(
-              children:[
-                Expanded(child: ElevatedButton(
-                  onPressed: _pickDate,
-                  child: Text(
-                    _selectedDate == null ? 'Pick Due Date' : DateFormat('yyyy-MM-dd').format(_selectedDate!)
-                  )
-                ),
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _pickDate,
+                    child: Text(
+                      _selectedDate == null
+                          ? 'Pick Due Date'
+                          : DateFormat('yyyy-MM-dd').format(_selectedDate!),
+                    ),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [TextButton(onPressed: (){
-                Navigator.pop(context);
-              },
-                child: const Text('Cancel'),
-              ),
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancel'),
+                ),
                 ElevatedButton(
-                  onPressed: (){
-                    if(_titleController.text.isNotEmpty){
+                  onPressed: () {
+                    if (_titleController.text.isNotEmpty) {
                       setState(() {
                         _tasks.add({
                           'title': _titleController.text,
                           'description': _descriptionController.text,
-                          'date': _selectedDate != null
-                          ? DateFormat('yyyy-MM-dd').format(_selectedDate!) : 'No Due Date',
+                          'date':
+                              _selectedDate?.toIso8601String() ?? 'No Due Date',
                         });
                       });
+                      _saveTasks();
                       //Reset input fields
                       _titleController.clear();
                       _descriptionController.clear();
                       _selectedDate = null;
-
                       Navigator.pop(context);
-
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Title is Required')),
@@ -122,7 +171,7 @@ print("Picked Date: $pickedDate");
               ],
             )
           ],
-        )
+        ),
       ),
     );
   }
@@ -148,38 +197,53 @@ print("Picked Date: $pickedDate");
         ),
       ),
       body: _tasks.isEmpty
-        ? const Center(child: Text('No task yet, add some!', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 25)))
-      : ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _tasks.length,
-        itemBuilder: (context, index){
-          final task = _tasks[index];
-          return Card(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ListTile(
-              title: Text(task['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (task['description'].isNotEmpty) Text(task['description']),
-                  Text('Due: ${task['date']}', style: TextStyle(color: Colors.grey[600])),
-                ],
+          ? const Center(
+              child: Text(
+                'No task yet, add some!',
+                style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 25),
               ),
-                trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: (){
-                  setState(() {
-                    _tasks.removeAt(index);
-                  });
-            },
-            ),
-            ),
-          );
-        }
-      ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _tasks.length,
+              itemBuilder: (context, index) {
+                final task = _tasks[index];
+                return Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    title: Text(task['title'],
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (task['description'].isNotEmpty)
+                          Text(task['description']),
+                        Text(
+                            'Due: ${task['date'] == 'No Due Date' ? 'No Due Date' : DateFormat('yyyy-MM-dd').format(
+                                DateTime.parse(
+                                  task['date'],
+                                ),
+                              )}',
+                            style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          _deleteTask(index);
+                        });
+                      },
+                    ),
+                  ),
+                );
+              }),
       floatingActionButton: FloatingActionButton(
         shape: const CircleBorder(),
         onPressed: () {
@@ -192,7 +256,7 @@ print("Picked Date: $pickedDate");
   }
 
   @override
-  void dispose(){
+  void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
